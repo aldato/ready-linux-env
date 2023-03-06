@@ -1,0 +1,9 @@
+---
+- name: Converge
+  hosts: all
+  # tasks:
+    # replace these tasks with whatever you find suitable to test
+    # - name: "Include readylinuxenv.ready_vm"
+    #   ansible.builtin.include_role:
+    #     name: "readylinuxenv.ready_vm"
+- import_playbook: ../../ready_linux_env.yaml

@@ -1,0 +1,15 @@
+galaxy_info:
+  author: Albert Daunis
+  role_name: ready_env
+  namespace: aldato
+  description: Role to prepare environment to run Ansible playbooks properly
+
+  license: GPL-3.0
+
+  min_ansible_version: "2.4"
+
+  # No Centos on meta.json for platforms
+  platforms:
+  - name: EL
+    versions:
+    - "8"

@@ -1,0 +1,119 @@
+---
+# tasks file for ready_env
+- name: Make dirs
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "750"
+  loop:
+    - ~/tmp
+    - ~/bin
+  tags:
+    - config_files
+
+- name: Check for pyenv
+  ansible.builtin.command:
+    cmd: which pyenv
+  register: pyenv
+  ignore_errors: true
+  changed_when: false
+
+- name: Install pyenv
+  when: pyenv.rc != 0
+  block:
+    - name: Run installer # noqa command-instead-of-module no-changed-when
+      ansible.builtin.shell: curl https://pyenv.run | bash
+
+    # Need to set export TMPDIR=~/tmp because /tmp has noexec
+    - name: Install python # noqa command-instead-of-shell no-changed-when
+      ansible.builtin.shell: pyenv install "{{ python_version }}"
+      environment:
+        TMPDIR: /home/{{ ansible_user_id }}/tmp
+
+    - name: Add venv  # noqa command-instead-of-shell no-changed-when
+      ansible.builtin.shell: pyenv virtualenv "{{ python_version }}" "{{ python_version }}"_dev
+
+- name: Update pip # noqa package-latest
+  ansible.builtin.pip:
+    name:
+      - pip
+      - setuptools
+    state: latest
+    virtualenv: "~/.pyenv/versions/{{ python_version }}/envs/{{ python_version }}_dev"
+    virtualenv_command: pyenv
+  tags:
+    - pip
+
+- name: Pip install things # noqa package-latest
+  ansible.builtin.pip:
+    name:
+      - ansible
+      - ansible-navigator
+      - ansible-lint
+    state: latest
+    virtualenv: "~/.pyenv/versions/{{ python_version }}/envs/{{ python_version }}_dev"
+    virtualenv_command: pyenv
+  tags:
+    - pip
+
+- name: Pip install azure.azcollection requirements
+  ansible.builtin.pip:
+    requirements: ~/.ansible/collections/ansible_collections/azure/azcollection/requirements-azure.txt
+    virtualenv: "~/.pyenv/versions/{{ python_version }}/envs/{{ python_version }}_dev"
+    virtualenv_command: pyenv
+  tags:
+    - pip
+
+- name: Clone Azure SRE repo # noqa git-latest
+  ansible.builtin.git:
+    repo: git@github.com:ansible/ansible-azure-sre.git
+    dest: ~/ansible-azure-sre
+    update: false
+    accept_newhostkey: true
+  tags:
+    - git
+
+- name: Clone Azure Management repo # noqa git-latest
+  ansible.builtin.git:
+    repo: git@gitlab.cee.redhat.com:aoc/ansible-azure-mgmt.git
+    dest: ~/ansible_azure_mgmt
+    update: false
+    accept_newhostkey: true
+  tags:
+    - git
+
+- name: Clone Managed Azure repo # noqa git-latest
+  ansible.builtin.git:
+    repo: git@github.com:ansible/managed_azure.git
+    dest: ~/managed_azure
+    update: false
+    accept_newhostkey: true
+  tags:
+    - git
+
+- name: Install collection redhat.ansible_azure_sre
+  ansible.builtin.command:
+    cmd: ansible-galaxy collection install .
+    chdir: ~/ansible-azure-sre
+  register: result
+  changed_when: result.stdout is not search("Nothing to do")
+  tags:
+    - galaxy
+
+- name: Install collection redhat.ansible_azure_mgmt
+  ansible.builtin.command:
+    cmd: ansible-galaxy collection install .
+    chdir: ~/ansible_azure_mgmt
+  register: result
+  changed_when: result.stdout is not search("Nothing to do")
+  tags:
+    - galaxy
+
+- name: Install collection redhat.managed_azure
+  ansible.builtin.command:
+    cmd: ansible-galaxy collection install .
+    chdir: ~/managed_azure
+  register: result
+  changed_when: result.stdout is not search("Nothing to do")
+  tags:
+    - galaxy
